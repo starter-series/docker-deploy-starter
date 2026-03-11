@@ -63,7 +63,7 @@ docker compose up
 
 - **Language agnostic** — Swap the Dockerfile for any language (Node, Python, Go, Rust, Java, static)
 - **CI Pipeline** — Dockerfile lint (hadolint), docker-compose validation, build verification on every push
-- **CD Pipeline** — One-click build → push to GHCR → deploy to VPS via SSH + auto GitHub Release
+- **CD Pipeline** — Build → push to GHCR → health-checked deploy to VPS via docker compose + auto GitHub Release
 - **Dockerfile examples** — Multi-stage builds for Node, Python, Go, Rust, Java in docs
 - **Version management** — `./scripts/bump-version.sh patch/minor/major`
 - **Local dev** — `docker compose up` with volume mounts for live reload
@@ -80,20 +80,22 @@ docker compose up
 | Validate compose | Verifies `docker-compose.yml` syntax |
 | Build test | Builds the Docker image to catch build errors |
 
-### CD (manual trigger via Actions tab)
+### CD (manual trigger or tag push)
 
 | Step | What it does |
 |------|-------------|
 | Version guard | Fails if git tag already exists for this version |
 | Build & push | Builds image and pushes to GitHub Container Registry |
-| Deploy | SSHs into your VPS, pulls new image, restarts container |
+| Deploy | SSHs into your VPS, pulls new image, health-checked restart via docker compose |
+| Image cleanup | Prunes old images on VPS + keeps last 10 versions on GHCR |
 | GitHub Release | Creates a tagged release with auto-generated notes |
 
 **How to deploy:**
 
 1. Set up GitHub Secrets (see below)
 2. Bump version: `./scripts/bump-version.sh patch`
-3. Go to **Actions** tab → **Deploy** → **Run workflow**
+3. **Manual:** Go to **Actions** tab → **Deploy** → **Run workflow**
+4. **Auto:** Push a version tag — `git tag v$(cat VERSION) && git push --tags`
 
 ### GitHub Secrets
 

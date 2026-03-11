@@ -6,4 +6,13 @@ services:
       - "${PORT:-3000}:3000"
     volumes:
       - ./app:/app
+      # Preserve container's installed dependencies from host mount override.
+      # Uncomment for apps with dependencies (node_modules, vendor, venv, etc.):
+      # - /app/node_modules
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

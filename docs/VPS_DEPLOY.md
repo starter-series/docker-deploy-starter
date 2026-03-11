@@ -55,23 +55,37 @@ EOF
 
 ## 6. Deploy
 
+**Option A: Manual trigger**
 1. Bump version: `./scripts/bump-version.sh patch`
 2. Commit and push
 3. Go to **Actions** tab → **Deploy** → **Run workflow**
 
+**Option B: Tag push (automatic)**
+1. Bump version: `./scripts/bump-version.sh patch`
+2. Commit, tag, and push:
+   ```bash
+   git add VERSION && git commit -m "Bump version"
+   git tag v$(cat VERSION)
+   git push && git push --tags
+   ```
+
 The workflow will:
 1. Build your Docker image
 2. Push to GitHub Container Registry
-3. SSH into your VPS
-4. Pull the new image
-5. Stop the old container and start the new one
+3. SSH into your VPS and create a `docker-compose.yml` at `~/app/`
+4. Pull the new image and restart with health check verification (`docker compose up -d --wait`)
+5. Clean up old images on VPS (`docker image prune`) and GHCR (keep last 10 versions)
 
 ## Troubleshooting
 
 ### Container won't start
 ```bash
 # Check logs
-docker logs app
+cd ~/app
+docker compose logs
+
+# Check health status
+docker compose ps
 
 # Check if port is in use
 sudo lsof -i :3000
@@ -92,21 +106,33 @@ chmod 600 ~/.ssh/deploy_key
 echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 ```
 
-## Advanced: Docker Compose on VPS
+## Advanced: Multi-Container Setup
 
-For multi-container setups, replace the SSH deploy step in `cd.yml`:
+The default deployment creates a single-service `docker-compose.yml` on VPS at `~/app/`.
+To add services (database, Redis, etc.), manually edit `~/app/docker-compose.yml` on your VPS:
 
 ```yaml
-- name: Deploy to VPS via SSH
-  uses: appleboy/ssh-action@v1
-  with:
-    host: ${{ secrets.VPS_HOST }}
-    username: ${{ secrets.VPS_USER }}
-    key: ${{ secrets.VPS_SSH_KEY }}
-    script: |
-      cd ~/app
-      docker compose pull
-      docker compose up -d
+services:
+  app:
+    image: ghcr.io/your-user/your-repo:latest
+    env_file: ~/.env.app
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
 ```
 
-And place a `docker-compose.prod.yml` on your VPS at `~/app/docker-compose.yml`.
+> **Note:** The CD workflow overwrites `~/app/docker-compose.yml` on each deploy. For multi-container setups, update the SSH deploy script in `cd.yml` to preserve your additional services, or manage the compose file separately on the VPS.

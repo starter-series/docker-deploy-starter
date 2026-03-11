@@ -2,6 +2,9 @@ name: Deploy
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -17,9 +20,15 @@ jobs:
 
       - name: Extract version
         id: version
-        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+          fi
 
       - name: Check tag does not exist
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: |
           if git ls-remote --tags origin | grep -q "refs/tags/v${{ steps.version.outputs.version }}$"; then
             echo "::error::Tag v${{ steps.version.outputs.version }} already exists. Run './scripts/bump-version.sh' first."
@@ -49,15 +58,35 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
-            docker stop app || true
-            docker rm app || true
-            docker run -d \
-              --name app \
-              --restart unless-stopped \
-              --env-file ~/.env.app \
-              -p 3000:3000 \
-              ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+            IMAGE="ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}"
+            mkdir -p ~/app
+            cat > ~/app/docker-compose.yml << EOF
+            services:
+              app:
+                image: $IMAGE
+                env_file: $HOME/.env.app
+                ports:
+                  - "3000:3000"
+                restart: unless-stopped
+                healthcheck:
+                  test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:3000/health"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 3
+                  start_period: 10s
+            EOF
+            cd ~/app
+            docker compose pull
+            docker compose up -d --wait
+            docker image prune -f
+
+      - name: Clean up old GHCR images
+        uses: actions/delete-package-versions@v5
+        continue-on-error: true
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: container
+          min-versions-to-keep: 10
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

@@ -5,7 +5,11 @@
 FROM node:20-alpine
 
 WORKDIR /app
-COPY app/ .
+COPY --chown=node:node app/ .
+
+USER node
 
 EXPOSE 3000
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=10s \
+  CMD wget -qO /dev/null http://localhost:3000/health || exit 1
 CMD ["node", "server.js"]

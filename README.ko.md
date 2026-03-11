@@ -63,7 +63,7 @@ docker compose up
 
 - **언어 무관** — Dockerfile만 바꾸면 Node, Python, Go, Rust, Java, 정적 사이트 모두 가능
 - **CI 파이프라인** — Dockerfile 린트 (hadolint), docker-compose 검증, 빌드 테스트
-- **CD 파이프라인** — 원클릭으로 빌드 → GHCR 푸시 → VPS SSH 배포 + GitHub Release 자동 생성
+- **CD 파이프라인** — 빌드 → GHCR 푸시 → docker compose 헬스체크 기반 VPS 배포 + GitHub Release 자동 생성
 - **Dockerfile 예시** — Node, Python, Go, Rust, Java용 멀티스테이지 빌드 docs 제공
 - **버전 관리** — `./scripts/bump-version.sh patch/minor/major`
 - **로컬 개발** — `docker compose up`으로 볼륨 마운트 + 라이브 리로드
@@ -80,20 +80,22 @@ docker compose up
 | Compose 검증 | `docker-compose.yml` 문법 확인 |
 | 빌드 테스트 | Docker 이미지 빌드로 오류 사전 감지 |
 
-### CD (Actions 탭에서 수동 실행)
+### CD (수동 실행 또는 태그 푸시)
 
 | 단계 | 설명 |
 |------|------|
 | 버전 확인 | 이미 존재하는 태그면 실패 |
 | 빌드 & 푸시 | 이미지 빌드 후 GitHub Container Registry에 푸시 |
-| 배포 | VPS에 SSH 접속, 새 이미지 풀, 컨테이너 재시작 |
+| 배포 | VPS에 SSH 접속, 새 이미지 풀, docker compose로 헬스체크 기반 재시작 |
+| 이미지 정리 | VPS 오래된 이미지 정리 + GHCR 최근 10개 버전 유지 |
 | GitHub Release | 자동 릴리스 노트와 함께 태그 생성 |
 
 **배포 방법:**
 
 1. GitHub Secrets 설정 (아래 참고)
 2. 버전 범프: `./scripts/bump-version.sh patch`
-3. **Actions** 탭 → **Deploy** → **Run workflow**
+3. **수동:** **Actions** 탭 → **Deploy** → **Run workflow**
+4. **자동:** 버전 태그 푸시 — `git tag v$(cat VERSION) && git push --tags`
 
 ### GitHub Secrets
 
