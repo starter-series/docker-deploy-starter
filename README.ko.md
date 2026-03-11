@@ -53,6 +53,7 @@ docker compose up
 ├── docs/
 │   ├── DOCKERFILE_EXAMPLES.md  # Node, Python, Go, Rust, Java용 Dockerfile
 │   ├── GHCR_SETUP.md           # GitHub Container Registry 설정
+│   ├── HTTPS_SETUP.md          # Caddy 리버스 프록시 + 자동 HTTPS
 │   └── VPS_DEPLOY.md           # VPS SSH 배포 가이드
 ├── scripts/
 │   └── bump-version.sh         # 버전 범프
@@ -67,6 +68,7 @@ docker compose up
 - **Dockerfile 예시** — Node, Python, Go, Rust, Java용 멀티스테이지 빌드 docs 제공
 - **버전 관리** — `./scripts/bump-version.sh patch/minor/major`
 - **로컬 개발** — `docker compose up`으로 볼륨 마운트 + 라이브 리로드
+- **HTTPS 가이드** — Caddy 리버스 프록시 + 자동 TLS
 - **배포 가이드** — GHCR, VPS 설정 단계별 문서
 - **템플릿 셋업** — 첫 사용 시 체크리스트 이슈 자동 생성
 
@@ -131,6 +133,26 @@ docker compose up --build
 3. 필요하면 `docker-compose.yml` 포트 수정
 4. `.env.example`에 내 앱의 환경변수 추가
 5. 테스트: `docker compose up --build`
+
+## 왜 VPS?
+
+Railway/Render/Vercel 같은 플랫폼은 단일 앱에는 좋습니다. 하지만 그 이상이 필요하면 VPS가 유리합니다:
+
+- **서버 하나에 전부** — 앱 + DB + 캐시를 한 머신에서. 서비스당 과금 없음
+- **벤더 종속 없음** — 표준 Docker + SSH. 어떤 VPS든 이동 가능
+- **시스템 전체 접근** — GPU, 커스텀 패키지, 컴플라이언스, OS 레벨 설정
+- **항상 켜져 있음** — 콜드 스타트 없음, 슬립 없음
+- **예측 가능한 비용** — 월 정액, 사용량 기반 청구 없음
+
+**Railway/Render/Vercel이 나은 경우:**
+- 웹 앱 하나 배포하고 인프라 관리 제로를 원할 때
+- 자동 백업이 포함된 매니지드 DB가 필요할 때
+
+## 왜 블로그 튜토리얼 대신?
+
+"Docker + GitHub Actions" 튜토리얼은 전부 같은 걸 가르칩니다. YAML 복붙하고, GHCR 인증 디버깅하고, SSH 키 연결하고, 헬스체크 설정하는 걸 매번 반복하게 됩니다.
+
+이 템플릿은 전체 파이프라인을 테스트 완료 상태로 제공합니다. `git clone` → `app/` 교체 → push → 배포 끝.
 
 ## 기여
 

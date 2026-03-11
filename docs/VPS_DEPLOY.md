@@ -106,6 +106,47 @@ chmod 600 ~/.ssh/deploy_key
 echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 ```
 
+## Rollback
+
+If a deployment breaks, roll back to a previous version using the GHCR version tags.
+
+### Quick Rollback (on VPS)
+
+```bash
+cd ~/app
+
+# See available versions
+docker images ghcr.io/YOUR_USER/YOUR_REPO
+
+# Roll back to a specific version
+sed -i 's/:.*/:1.0.2/' docker-compose.yml
+docker compose pull
+docker compose up -d --wait
+```
+
+### Rollback via GitHub Actions
+
+Re-run the Deploy workflow with a previous version tag:
+
+```bash
+# On your local machine
+git tag v1.0.2   # The version you want to roll back to
+git push --tags  # This triggers the CD workflow with the old version
+```
+
+Or manually SSH and switch:
+
+```bash
+ssh deploy@YOUR_VPS_IP
+cd ~/app
+IMAGE="ghcr.io/YOUR_USER/YOUR_REPO:1.0.2"
+sed -i "s|image:.*|image: $IMAGE|" docker-compose.yml
+docker compose pull
+docker compose up -d --wait
+```
+
+> **Tip:** GHCR keeps the last 10 versions by default (configured in `cd.yml`). Make sure the version you need hasn't been pruned.
+
 ## Advanced: Multi-Container Setup
 
 The default deployment creates a single-service `docker-compose.yml` on VPS at `~/app/`.

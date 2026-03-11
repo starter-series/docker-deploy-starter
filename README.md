@@ -53,6 +53,7 @@ docker compose up
 ├── docs/
 │   ├── DOCKERFILE_EXAMPLES.md  # Dockerfiles for Node, Python, Go, Rust, Java
 │   ├── GHCR_SETUP.md           # GitHub Container Registry setup
+│   ├── HTTPS_SETUP.md          # HTTPS with Caddy reverse proxy
 │   └── VPS_DEPLOY.md           # VPS SSH deployment guide
 ├── scripts/
 │   └── bump-version.sh         # Version bump utility
@@ -67,6 +68,7 @@ docker compose up
 - **Dockerfile examples** — Multi-stage builds for Node, Python, Go, Rust, Java in docs
 - **Version management** — `./scripts/bump-version.sh patch/minor/major`
 - **Local dev** — `docker compose up` with volume mounts for live reload
+- **HTTPS guide** — Caddy reverse proxy with automatic TLS
 - **Deploy guides** — Step-by-step docs for GHCR and VPS setup
 - **Template setup** — Auto-creates setup checklist issue on first use
 
@@ -132,28 +134,25 @@ docker compose up --build
 4. Update `.env.example` with your app's environment variables
 5. Test: `docker compose up --build`
 
-## Why This Over Copy-Pasting Blog Tutorials?
+## Why VPS?
 
-Every Docker + GitHub Actions tutorial teaches the same steps. But you end up copy-pasting YAML, debugging auth issues, and wiring it all together yourself. This template gives you the whole pipeline, tested and ready.
+Platforms like Railway/Render/Vercel are great for single apps. But when you need more, VPS wins:
 
-|  | This template | Blog tutorials | ChristianLempa/boilerplates |
-|---|---|---|---|
-| Philosophy | Thin starter with CI/CD | Learn by building | Infrastructure toolkit |
-| CI/CD | Full pipeline included | You assemble it | Not included |
-| Deploy target | Any VPS via SSH | Varies | Not included |
-| Container registry | GHCR (built-in) | Docker Hub (manual) | Not included |
-| Language | Any (swap Dockerfile) | Usually one | Docker Compose configs |
-| Maintenance | Template repo, updated | Blog post, static | CLI tool, DevOps focus |
+- **One server, everything** — Run app + DB + cache on one machine instead of paying per service
+- **No vendor lock-in** — Standard Docker + SSH. Move between any VPS provider
+- **Full system access** — GPU, custom packages, compliance, any OS-level config
+- **Always on** — No cold starts, no spin-down, no sleep timers
+- **Predictable cost** — Flat monthly price, no usage-based surprises
 
-**Choose this template if:**
-- You have an app and want to deploy it with Docker — without figuring out CI/CD from scratch
-- You want push-to-deploy on your own VPS (not locked into a platform)
-- You're using AI tools to generate code and need production deployment out of the box
+**Use Railway/Render/Vercel instead if:**
+- You're deploying a single web app and want zero infrastructure management
+- You need managed databases with automatic backups
 
-**Choose something else if:**
-- You're deploying to Vercel/Railway/Render (they handle this automatically)
-- You need Kubernetes orchestration (this is single-container, single-server)
-- You want a full infrastructure-as-code toolkit (see ChristianLempa/boilerplates)
+## Why This Over Blog Tutorials?
+
+Every "Docker + GitHub Actions" tutorial teaches the same steps. You end up copy-pasting YAML, debugging GHCR auth, wiring SSH keys, and setting up health checks — every single time.
+
+This template gives you the entire pipeline, tested and ready. `git clone` → replace `app/` → push → deployed.
 
 ## Contributing
 
