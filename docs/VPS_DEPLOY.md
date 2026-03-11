@@ -56,12 +56,12 @@ EOF
 ## 6. Deploy
 
 **Option A: Manual trigger**
-1. Bump version: `./scripts/bump-version.sh patch`
+1. Bump version: `node scripts/bump-version.js patch`
 2. Commit and push
 3. Go to **Actions** tab → **Deploy** → **Run workflow**
 
 **Option B: Tag push (automatic)**
-1. Bump version: `./scripts/bump-version.sh patch`
+1. Bump version: `node scripts/bump-version.js patch`
 2. Commit, tag, and push:
    ```bash
    git add VERSION && git commit -m "Bump version"

@@ -56,7 +56,7 @@ docker compose up
 │   ├── HTTPS_SETUP.md          # Caddy 리버스 프록시 + 자동 HTTPS
 │   └── VPS_DEPLOY.md           # VPS SSH 배포 가이드
 ├── scripts/
-│   └── bump-version.sh         # 버전 범프
+│   └── bump-version.js         # 버전 범프
 └── VERSION                     # 현재 버전
 ```
 
@@ -66,7 +66,7 @@ docker compose up
 - **CI 파이프라인** — Dockerfile 린트 (hadolint), docker-compose 검증, 빌드 테스트
 - **CD 파이프라인** — 빌드 → GHCR 푸시 → docker compose 헬스체크 기반 VPS 배포 + GitHub Release 자동 생성
 - **Dockerfile 예시** — Node, Python, Go, Rust, Java용 멀티스테이지 빌드 docs 제공
-- **버전 관리** — `./scripts/bump-version.sh patch/minor/major`
+- **버전 관리** — `node scripts/bump-version.js patch/minor/major`
 - **로컬 개발** — `docker compose up`으로 볼륨 마운트 + 라이브 리로드
 - **HTTPS 가이드** — Caddy 리버스 프록시 + 자동 TLS
 - **배포 가이드** — GHCR, VPS 설정 단계별 문서
@@ -95,7 +95,7 @@ docker compose up
 **배포 방법:**
 
 1. GitHub Secrets 설정 (아래 참고)
-2. 버전 범프: `./scripts/bump-version.sh patch`
+2. 버전 범프: `node scripts/bump-version.js patch`
 3. **수동:** **Actions** 탭 → **Deploy** → **Run workflow**
 4. **자동:** 버전 태그 푸시 — `git tag v$(cat VERSION) && git push --tags`
 
@@ -121,9 +121,9 @@ docker compose up
 docker compose up --build
 
 # 버전 범프
-./scripts/bump-version.sh patch   # 1.0.0 → 1.0.1
-./scripts/bump-version.sh minor   # 1.0.0 → 1.1.0
-./scripts/bump-version.sh major   # 1.0.0 → 2.0.0
+node scripts/bump-version.js patch   # 1.0.0 → 1.0.1
+node scripts/bump-version.js minor   # 1.0.0 → 1.1.0
+node scripts/bump-version.js major   # 1.0.0 → 2.0.0
 ```
 
 ## 언어 변경

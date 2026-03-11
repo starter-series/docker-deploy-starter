@@ -56,7 +56,7 @@ docker compose up
 │   ├── HTTPS_SETUP.md          # HTTPS with Caddy reverse proxy
 │   └── VPS_DEPLOY.md           # VPS SSH deployment guide
 ├── scripts/
-│   └── bump-version.sh         # Version bump utility
+│   └── bump-version.js         # Version bump utility
 └── VERSION                     # Current version
 ```
 
@@ -66,7 +66,7 @@ docker compose up
 - **CI Pipeline** — Dockerfile lint (hadolint), docker-compose validation, build verification on every push
 - **CD Pipeline** — Build → push to GHCR → health-checked deploy to VPS via docker compose + auto GitHub Release
 - **Dockerfile examples** — Multi-stage builds for Node, Python, Go, Rust, Java in docs
-- **Version management** — `./scripts/bump-version.sh patch/minor/major`
+- **Version management** — `node scripts/bump-version.js patch/minor/major`
 - **Local dev** — `docker compose up` with volume mounts for live reload
 - **HTTPS guide** — Caddy reverse proxy with automatic TLS
 - **Deploy guides** — Step-by-step docs for GHCR and VPS setup
@@ -95,7 +95,7 @@ docker compose up
 **How to deploy:**
 
 1. Set up GitHub Secrets (see below)
-2. Bump version: `./scripts/bump-version.sh patch`
+2. Bump version: `node scripts/bump-version.js patch`
 3. **Manual:** Go to **Actions** tab → **Deploy** → **Run workflow**
 4. **Auto:** Push a version tag — `git tag v$(cat VERSION) && git push --tags`
 
@@ -121,9 +121,9 @@ docker compose up
 docker compose up --build
 
 # Bump version
-./scripts/bump-version.sh patch   # 1.0.0 → 1.0.1
-./scripts/bump-version.sh minor   # 1.0.0 → 1.1.0
-./scripts/bump-version.sh major   # 1.0.0 → 2.0.0
+node scripts/bump-version.js patch   # 1.0.0 → 1.0.1
+node scripts/bump-version.js minor   # 1.0.0 → 1.1.0
+node scripts/bump-version.js major   # 1.0.0 → 2.0.0
 ```
 
 ## Switching Languages
