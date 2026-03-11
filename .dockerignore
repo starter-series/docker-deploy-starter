@@ -1,0 +1,14 @@
+.git
+.github
+.gitignore
+.env
+.env.*
+!.env.example
+.idea
+.DS_Store
+docs
+scripts
+README.md
+README.ko.md
+LICENSE
+*.md

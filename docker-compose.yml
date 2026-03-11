@@ -1,0 +1,9 @@
+services:
+  app:
+    build: .
+    env_file: .env
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ./app:/app
+    restart: unless-stopped

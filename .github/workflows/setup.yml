@@ -1,0 +1,63 @@
+name: Template Setup
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  setup:
+    if: github.event.created || github.run_number == 1
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if template
+        id: check
+        run: |
+          VERSION=$(cat VERSION)
+          if [ "$VERSION" = "1.0.0" ] && [ -f "app/server.js" ]; then
+            echo "is_template=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_template=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create setup checklist
+        if: steps.check.outputs.is_template == 'true'
+        run: |
+          gh issue create \
+            --title "Setup: Configure your deployment" \
+            --body "$(cat <<'ISSUE_BODY'
+          ## Required
+
+          - [ ] Replace `app/` with your application code
+          - [ ] Update `Dockerfile` for your language/framework (see [docs/DOCKERFILE_EXAMPLES.md](docs/DOCKERFILE_EXAMPLES.md))
+          - [ ] Copy `.env.example` to `.env` and fill in your variables
+          - [ ] Update `docker-compose.yml` ports and volumes for your app
+
+          ## GHCR Setup
+
+          Follow [docs/GHCR_SETUP.md](docs/GHCR_SETUP.md) to:
+
+          - [ ] Verify GitHub Actions has package write permission
+          - [ ] Make your container image public (optional)
+
+          ## VPS Deployment
+
+          Follow [docs/VPS_DEPLOY.md](docs/VPS_DEPLOY.md) to:
+
+          - [ ] Add secret: `VPS_HOST` (your server IP or domain)
+          - [ ] Add secret: `VPS_USER` (SSH username)
+          - [ ] Add secret: `VPS_SSH_KEY` (SSH private key)
+          - [ ] Set up Docker on your VPS
+          - [ ] Create `~/.env.app` on your VPS with production env vars
+
+          ## Recommended
+
+          - [ ] Bump `VERSION` after setup
+          - [ ] Delete this issue when done
+          ISSUE_BODY
+          )"
+        env:
+          GH_TOKEN: ${{ github.token }}
