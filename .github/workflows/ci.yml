@@ -18,7 +18,10 @@ jobs:
           dockerfile: Dockerfile
 
       - name: Validate docker-compose
-        run: docker compose config --quiet
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          rm .env
 
       - name: Build Docker image
         run: docker build -t docker-deploy-starter:test .
