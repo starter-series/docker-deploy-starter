@@ -42,7 +42,7 @@ docker compose up
 ├── app/                        # 예시 앱 (내 앱으로 교체)
 │   ├── server.js               # 최소 Node.js HTTP 서버
 │   └── package.json
-├── Dockerfile                  # 멀티스테이지 빌드 (언어별 교체)
+├── Dockerfile                  # 예시 빌드 (언어별 교체)
 ├── docker-compose.yml          # 로컬 개발용
 ├── .github/
 │   ├── workflows/
@@ -64,7 +64,7 @@ docker compose up
 - **언어 무관** — Dockerfile만 바꾸면 Node, Python, Go, Rust, Java, 정적 사이트 모두 가능
 - **CI 파이프라인** — Dockerfile 린트 (hadolint), docker-compose 검증, 빌드 테스트
 - **CD 파이프라인** — 원클릭으로 빌드 → GHCR 푸시 → VPS SSH 배포 + GitHub Release 자동 생성
-- **멀티스테이지 Dockerfile** — 빌드/런타임 분리로 작은 프로덕션 이미지
+- **Dockerfile 예시** — Node, Python, Go, Rust, Java용 멀티스테이지 빌드 docs 제공
 - **버전 관리** — `./scripts/bump-version.sh patch/minor/major`
 - **로컬 개발** — `docker compose up`으로 볼륨 마운트 + 라이브 리로드
 - **배포 가이드** — GHCR, VPS 설정 단계별 문서

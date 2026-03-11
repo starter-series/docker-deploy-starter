@@ -42,7 +42,7 @@ docker compose up
 ├── app/                        # Example app (replace with yours)
 │   ├── server.js               # Minimal Node.js HTTP server
 │   └── package.json
-├── Dockerfile                  # Multi-stage build (swap for your language)
+├── Dockerfile                  # Example build (swap for your language)
 ├── docker-compose.yml          # Local development
 ├── .github/
 │   ├── workflows/
@@ -64,7 +64,7 @@ docker compose up
 - **Language agnostic** — Swap the Dockerfile for any language (Node, Python, Go, Rust, Java, static)
 - **CI Pipeline** — Dockerfile lint (hadolint), docker-compose validation, build verification on every push
 - **CD Pipeline** — One-click build → push to GHCR → deploy to VPS via SSH + auto GitHub Release
-- **Multi-stage Dockerfile** — Small production images with build/runtime separation
+- **Dockerfile examples** — Multi-stage builds for Node, Python, Go, Rust, Java in docs
 - **Version management** — `./scripts/bump-version.sh patch/minor/major`
 - **Local dev** — `docker compose up` with volume mounts for live reload
 - **Deploy guides** — Step-by-step docs for GHCR and VPS setup
