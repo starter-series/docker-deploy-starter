@@ -59,6 +59,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             IMAGE="ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}"
+            PORT="${{ secrets.APP_PORT || '3000' }}"
             mkdir -p ~/app
             cat > ~/app/docker-compose.yml << EOF
             services:
@@ -66,10 +67,10 @@ jobs:
                 image: $IMAGE
                 env_file: $HOME/.env.app
                 ports:
-                  - "3000:3000"
+                  - "${PORT}:${PORT}"
                 restart: unless-stopped
                 healthcheck:
-                  test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:3000/health"]
+                  test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:${PORT}/health"]
                   interval: 10s
                   timeout: 5s
                   retries: 3
