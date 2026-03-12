@@ -5,12 +5,27 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_call:
 
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for large files
+        run: |
+          LARGE=$(find . -not -path './.git/*' -type f -size +5M)
+          if [ -n "$LARGE" ]; then
+            echo "::error::Large files detected (>5 MB):"
+            echo "$LARGE"
+            exit 1
+          fi
 
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
@@ -25,3 +40,20 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t docker-deploy-starter:test .
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: docker-deploy-starter:test
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+
+      - name: Check image size
+        run: |
+          SIZE=$(docker image inspect docker-deploy-starter:test --format='{{.Size}}')
+          SIZE_MB=$((SIZE / 1024 / 1024))
+          echo "Image size: ${SIZE_MB} MB"
+          if [ "$SIZE_MB" -gt 500 ]; then
+            echo "::error::Docker image exceeds 500 MB (${SIZE_MB} MB) — consider multi-stage build"
+            exit 1
+          fi

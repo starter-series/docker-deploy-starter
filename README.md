@@ -17,6 +17,12 @@ Build your app. Push to deploy.
 
 ---
 
+> **Part of [Starter Series](https://github.com/heznpc/starter-series)** — Stop explaining CI/CD to your AI every time. Clone and start.
+>
+> [Docker Deploy](https://github.com/heznpc/docker-deploy-starter) · [Discord Bot](https://github.com/heznpc/discord-bot-starter) · [Telegram Bot](https://github.com/heznpc/telegram-bot-starter) · [Browser Extension](https://github.com/heznpc/browser-extension-starter) · [Electron App](https://github.com/heznpc/electron-app-starter) · [npm Package](https://github.com/heznpc/npm-package-starter) · [React Native](https://github.com/heznpc/react-native-starter) · [VS Code Extension](https://github.com/heznpc/vscode-extension-starter) · [MCP Server](https://github.com/heznpc/mcp-server-starter)
+
+---
+
 ## Quick Start
 
 ```bash
@@ -63,7 +69,7 @@ docker compose up
 ## Features
 
 - **Language agnostic** — Swap the Dockerfile for any language (Node, Python, Go, Rust, Java, static)
-- **CI Pipeline** — Dockerfile lint (hadolint), docker-compose validation, build verification on every push
+- **CI Pipeline** — Dockerfile lint (hadolint), docker-compose validation, build verification, Trivy CVE scan on every push
 - **CD Pipeline** — Build → push to GHCR → health-checked deploy to VPS via docker compose + auto GitHub Release
 - **Dockerfile examples** — Multi-stage builds for Node, Python, Go, Rust, Java in docs
 - **Version management** — `node scripts/bump-version.js patch/minor/major`
@@ -81,6 +87,7 @@ docker compose up
 | Lint Dockerfile | [Hadolint](https://github.com/hadolint/hadolint) checks for best practices |
 | Validate compose | Verifies `docker-compose.yml` syntax |
 | Build test | Builds the Docker image to catch build errors |
+| Scan image | [Trivy](https://github.com/aquasecurity/trivy) scans for CRITICAL/HIGH CVEs |
 
 ### CD (manual trigger or tag push)
 
