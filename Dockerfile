@@ -2,7 +2,7 @@
 # Replace with your own Dockerfile for other languages
 # See docs/DOCKERFILE_EXAMPLES.md for Python, Go, and more
 
-FROM node:20-alpine
+FROM node:25-alpine
 
 WORKDIR /app
 COPY --chown=node:node app/ .
