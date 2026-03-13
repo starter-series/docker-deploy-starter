@@ -22,7 +22,7 @@ jobs:
         run: |
           curl -sSfL "$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
             | grep -o 'https://[^"]*linux_x64.tar.gz')" | tar xz
-          ./gitleaks git --source . --verbose --redact
+          ./gitleaks detect --source . --verbose --redact
 
       - name: Check for large files
         run: |
