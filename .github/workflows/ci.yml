@@ -19,9 +19,10 @@ jobs:
           fetch-depth: 0
 
       - name: Scan for secrets
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sSfL "$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
+            | grep -o 'https://[^"]*linux_x64.tar.gz')" | tar xz
+          ./gitleaks git --source . --verbose --redact
 
       - name: Check for large files
         run: |
