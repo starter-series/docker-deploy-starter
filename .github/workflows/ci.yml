@@ -21,8 +21,8 @@ jobs:
       - name: Scan for secrets
         run: |
           curl -sSfL "$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
-            | grep -o 'https://[^"]*linux_x64.tar.gz')" | tar xz
-          ./gitleaks detect --source . --verbose --redact
+            | grep -o 'https://[^"]*linux_x64.tar.gz')" | tar xz -C /tmp
+          /tmp/gitleaks detect --source . --verbose --redact
 
       - name: Check for large files
         run: |
