@@ -45,11 +45,15 @@ jobs:
           fi
 
       - name: Validate secrets
+        env:
+          HAS_VPS_HOST: ${{ secrets.VPS_HOST != '' }}
+          HAS_VPS_USER: ${{ secrets.VPS_USER != '' }}
+          HAS_VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY != '' }}
         run: |
           MISSING=""
-          if [ -z "${{ secrets.VPS_HOST }}" ]; then MISSING="$MISSING VPS_HOST"; fi
-          if [ -z "${{ secrets.VPS_USER }}" ]; then MISSING="$MISSING VPS_USER"; fi
-          if [ -z "${{ secrets.VPS_SSH_KEY }}" ]; then MISSING="$MISSING VPS_SSH_KEY"; fi
+          if [ "$HAS_VPS_HOST" != "true" ]; then MISSING="$MISSING VPS_HOST"; fi
+          if [ "$HAS_VPS_USER" != "true" ]; then MISSING="$MISSING VPS_USER"; fi
+          if [ "$HAS_VPS_SSH_KEY" != "true" ]; then MISSING="$MISSING VPS_SSH_KEY"; fi
           if [ -n "$MISSING" ]; then
             echo "::error::Missing required secrets:$MISSING — See docs/VPS_DEPLOY.md"
             exit 1
