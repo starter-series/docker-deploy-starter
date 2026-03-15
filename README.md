@@ -89,6 +89,14 @@ docker compose up
 | Build test | Builds the Docker image to catch build errors |
 | Scan image | [Trivy](https://github.com/aquasecurity/trivy) scans for CRITICAL/HIGH CVEs |
 
+### Security & Maintenance
+
+| Workflow | What it does |
+|----------|-------------|
+| CodeQL (`codeql.yml`) | Static analysis for security vulnerabilities (push/PR + weekly) |
+| Maintenance (`maintenance.yml`) | Weekly CI health check — auto-creates issue on failure |
+| Stale (`stale.yml`) | Labels inactive issues/PRs after 30 days, auto-closes after 7 more |
+
 ### CD (manual trigger or tag push)
 
 | Step | What it does |
