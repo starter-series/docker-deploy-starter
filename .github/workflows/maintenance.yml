@@ -18,7 +18,7 @@ jobs:
     if: failure()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           script: |
             const existing = await github.rest.issues.listForRepo({
@@ -54,7 +54,7 @@ jobs:
     if: success()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         with:
           script: |
             // Close any open maintenance issues — the most recent CI run
