@@ -87,13 +87,28 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
             IMAGE="ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}"
             PORT="${{ secrets.APP_PORT || '3000' }}"
             mkdir -p ~/app
-            cat > ~/app/docker-compose.yml << EOF
+            cd ~/app
+
+            # Capture currently running image for potential rollback
+            PREV_IMAGE=""
+            if docker compose ps -q app >/dev/null 2>&1; then
+              CID=$(docker compose ps -q app || true)
+              if [ -n "$CID" ]; then
+                PREV_IMAGE=$(docker inspect --format '{{.Config.Image}}' "$CID" 2>/dev/null || true)
+              fi
+            fi
+            echo "Previous image: ${PREV_IMAGE:-<none>}"
+
+            write_compose() {
+              local img="$1"
+              cat > ~/app/docker-compose.yml << EOF
             services:
               app:
-                image: $IMAGE
+                image: $img
                 env_file: $HOME/.env.app
                 ports:
                   - "${PORT}:${PORT}"
@@ -105,10 +120,25 @@ jobs:
                   retries: 3
                   start_period: 10s
             EOF
-            cd ~/app
+            }
+
+            write_compose "$IMAGE"
             docker compose pull
-            docker compose up -d --wait
-            docker image prune -f
+
+            if docker compose up -d --wait; then
+              echo "Deploy succeeded."
+              docker image prune -f
+            else
+              echo "::error::Deploy health check failed."
+              if [ -n "$PREV_IMAGE" ] && [ "$PREV_IMAGE" != "$IMAGE" ]; then
+                echo "Rolling back to $PREV_IMAGE"
+                write_compose "$PREV_IMAGE"
+                docker compose up -d --wait || echo "::error::Rollback also failed — manual intervention required."
+              else
+                echo "No previous image available to roll back to."
+              fi
+              exit 1
+            fi
 
       - name: Clean up old GHCR images
         uses: actions/delete-package-versions@v5
