@@ -25,6 +25,25 @@ Build your app. Push to deploy.
 
 ## Quick Start
 
+**Via [create-starter](https://github.com/starter-series/create-starter)** (recommended):
+
+```bash
+npx @starter-series/create my-service --template docker-deploy
+cd my-service
+# Add your app's Dockerfile + code, then:
+docker compose up
+```
+
+**Or clone directly:**
+
+```bash
+git clone https://github.com/starter-series/docker-deploy-starter my-service
+cd my-service
+docker compose up
+```
+
+**Full setup (bring your own app):**
+
 ```bash
 # 1. Click "Use this template" on GitHub (or clone)
 git clone https://github.com/starter-series/docker-deploy-starter.git my-app
