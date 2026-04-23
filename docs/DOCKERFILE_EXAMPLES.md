@@ -33,9 +33,12 @@ COPY app/ .
 
 FROM python:3.12-slim
 
+RUN adduser --disabled-password --gecos "" app
 WORKDIR /app
 COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=build /app .
+COPY --from=build --chown=app:app /app .
+
+USER app
 
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
@@ -54,8 +57,11 @@ RUN CGO_ENABLED=0 go build -o server .
 
 FROM alpine:3.20
 
+RUN adduser -D -H app
 WORKDIR /app
-COPY --from=build /app/server .
+COPY --from=build --chown=app:app /app/server .
+
+USER app
 
 EXPOSE 8080
 CMD ["./server"]
@@ -74,8 +80,11 @@ RUN cargo build --release
 
 FROM alpine:3.20
 
+RUN adduser -D -H app
 WORKDIR /app
-COPY --from=build /app/target/release/server .
+COPY --from=build --chown=app:app /app/target/release/server .
+
+USER app
 
 EXPOSE 8080
 CMD ["./server"]
@@ -92,8 +101,11 @@ RUN ./gradlew bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine
 
+RUN addgroup --system app && adduser --system --ingroup app app
 WORKDIR /app
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build --chown=app:app /app/build/libs/*.jar app.jar
+
+USER app
 
 EXPOSE 8080
 CMD ["java", "-jar", "app.jar"]
@@ -109,6 +121,8 @@ COPY app/ /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
+
+> Note: The official `nginx:alpine` image runs as root by default to bind port 80. For non-root Nginx, use `nginxinc/nginx-unprivileged:alpine` (listens on 8080).
 
 ## Tips
 
