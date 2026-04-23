@@ -80,65 +80,34 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1
+      - name: Copy deploy script to VPS
+        uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          source: scripts/deploy-with-rollback.sh
+          target: ~/app
+          strip_components: 1
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          PORT: ${{ secrets.APP_PORT || '3000' }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: IMAGE,PORT
           script: |
             set -e
-            IMAGE="ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}"
-            PORT="${{ secrets.APP_PORT || '3000' }}"
-            mkdir -p ~/app
-            cd ~/app
-
-            # Capture currently running image for potential rollback
-            PREV_IMAGE=""
-            if docker compose ps -q app >/dev/null 2>&1; then
-              CID=$(docker compose ps -q app || true)
-              if [ -n "$CID" ]; then
-                PREV_IMAGE=$(docker inspect --format '{{.Config.Image}}' "$CID" 2>/dev/null || true)
-              fi
-            fi
-            echo "Previous image: ${PREV_IMAGE:-<none>}"
-
-            write_compose() {
-              local img="$1"
-              cat > ~/app/docker-compose.yml << EOF
-            services:
-              app:
-                image: $img
-                env_file: $HOME/.env.app
-                ports:
-                  - "${PORT}:${PORT}"
-                restart: unless-stopped
-                healthcheck:
-                  test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:${PORT}/health"]
-                  interval: 10s
-                  timeout: 5s
-                  retries: 3
-                  start_period: 10s
-            EOF
-            }
-
-            write_compose "$IMAGE"
-            docker compose pull
-
-            if docker compose up -d --wait; then
-              echo "Deploy succeeded."
-              docker image prune -f
-            else
-              echo "::error::Deploy health check failed."
-              if [ -n "$PREV_IMAGE" ] && [ "$PREV_IMAGE" != "$IMAGE" ]; then
-                echo "Rolling back to $PREV_IMAGE"
-                write_compose "$PREV_IMAGE"
-                docker compose up -d --wait || echo "::error::Rollback also failed — manual intervention required."
-              else
-                echo "No previous image available to roll back to."
-              fi
-              exit 1
-            fi
+            chmod +x ~/app/deploy-with-rollback.sh
+            IMAGE="$IMAGE" \
+              PORT="$PORT" \
+              DEPLOY_DIR="$HOME/app" \
+              ENV_FILE="$HOME/.env.app" \
+              ~/app/deploy-with-rollback.sh
 
       - name: Clean up old GHCR images
         uses: actions/delete-package-versions@v5
