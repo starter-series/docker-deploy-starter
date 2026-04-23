@@ -43,7 +43,7 @@ Go to your repo → **Settings** → **Secrets and variables** → **Actions** �
 
 ## 5. Set Up Production Environment
 
-On your VPS, create the environment file:
+On your VPS, create the environment file at `~/.env.app` — **this file must exist before the first deploy**. The CD workflow runs a preflight check and will fail with a clear message if it is missing.
 
 ```bash
 # On your VPS
@@ -51,7 +51,10 @@ cat > ~/.env.app << 'EOF'
 PORT=3000
 # Add your production environment variables
 EOF
+chmod 600 ~/.env.app
 ```
+
+The preflight also verifies `~/.env.app` is not world-readable. `chmod 600` is recommended; wider permissions trigger a warning but do not fail the deploy.
 
 ## 6. Deploy
 
@@ -160,6 +163,40 @@ docker compose up -d --wait
 ```
 
 > **Tip:** GHCR keeps the last 10 versions by default (configured in `cd.yml`). Make sure the version you need hasn't been pruned.
+
+## SSH Key Rotation
+
+Rotate `VPS_SSH_KEY` on a quarterly cadence, or immediately if you suspect compromise (leaked laptop, ex-contributor access, etc.). The rotation is zero-downtime as long as you keep both keys valid during the switch.
+
+1. **Generate a new ed25519 keypair** on your local machine (passphrase recommended for the at-rest copy):
+
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/deploy_key_new -C "deploy@$(date +%Y-%m)"
+   ```
+
+   See [OpenSSH docs](https://www.openssh.com/manual.html) for the underlying options.
+
+2. **Append the new public key to the VPS** — do *not* remove the old one yet:
+
+   ```bash
+   ssh-copy-id -i ~/.ssh/deploy_key_new.pub deploy@YOUR_VPS_IP
+   ```
+
+3. **Update the GitHub Secret** `VPS_SSH_KEY` with the contents of the new *private* key (`~/.ssh/deploy_key_new`). Repo → Settings → Secrets and variables → Actions → `VPS_SSH_KEY` → Update.
+
+4. **Verify CD still works.** Push a trivial commit (or re-run the last Deploy workflow) and confirm it reaches the VPS. If it fails, the old key is still authorized — roll back the secret and investigate.
+
+5. **Remove the old public key** from `~/.ssh/authorized_keys` on the VPS once the new key is confirmed working:
+
+   ```bash
+   ssh deploy@YOUR_VPS_IP
+   # Edit authorized_keys and delete the old line
+   nano ~/.ssh/authorized_keys
+   ```
+
+6. **Delete the old private key locally** (`rm ~/.ssh/deploy_key`) and document the rotation date.
+
+> **Locked out?** Use your VPS provider's web console (DigitalOcean, Hetzner, etc. all offer one) to log in, re-add a working public key, and restart. Never store the only copy of a recovery key in GitHub alone.
 
 ## Advanced: Multi-Container Setup
 

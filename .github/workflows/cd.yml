@@ -80,6 +80,30 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Preflight — verify ~/.env.app on VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            if [ ! -f "$HOME/.env.app" ]; then
+              echo "::error::~/.env.app not found on VPS. Create it before deploying — see docs/VPS_DEPLOY.md section 5 (Set Up Production Environment)."
+              exit 1
+            fi
+            if [ ! -r "$HOME/.env.app" ]; then
+              echo "::error::~/.env.app exists but is not readable by $USER. Fix with: chmod 600 ~/.env.app"
+              exit 1
+            fi
+            PERMS="$(stat -c '%a' "$HOME/.env.app" 2>/dev/null || stat -f '%Lp' "$HOME/.env.app")"
+            # Warn (don't fail) if world-readable — users may have deliberate setups.
+            # $PERMS is a digit string like "600" or "644"; force octal interpretation.
+            if [ "$((8#$PERMS & 4))" -ne 0 ]; then
+              echo "::warning::~/.env.app is world-readable (mode $PERMS). Recommend: chmod 600 ~/.env.app"
+            fi
+            echo "Preflight OK (mode $PERMS)"
+
       - name: Copy deploy script to VPS
         uses: appleboy/scp-action@v1
         with:
