@@ -68,3 +68,14 @@ jobs:
             echo "::error::Docker image exceeds 500 MB (${SIZE_MB} MB) — consider multi-stage build"
             exit 1
           fi
+
+  rollback-integration-test:
+    # Regression test for scripts/deploy-with-rollback.sh. Exercises the
+    # same script the CD workflow calls over SSH, but with local images
+    # and local docker compose so no secrets/registry are required.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run rollback integration test
+        run: bash tests/rollback-integration.sh
