@@ -45,6 +45,8 @@ write_compose() {
     if [ -n "$ENV_FILE" ]; then
       echo "    env_file: $ENV_FILE"
     fi
+    echo "    environment:"
+    echo "      PORT: \"${PORT}\""
     echo "    ports:"
     echo "      - \"${PORT}:${PORT}\""
     echo "    restart: unless-stopped"
