@@ -108,7 +108,21 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 
 ## Rollback
 
-If a deployment breaks, roll back to a previous version using the GHCR version tags.
+### Automatic Rollback
+
+The CD workflow captures the currently running image before each deploy and reverts to it if the new version fails its health check.
+
+- **Trigger:** `docker compose up -d --wait` fails (new container never reports healthy within the start period/retries).
+- **What gets restored:** `~/app/docker-compose.yml` is rewritten back to the previous image tag and restarted in place — no manual SSH needed.
+- **Signal:** the GHA job fails with `::error::Deploy health check failed.` and the rollback attempt is logged in the job output.
+- **Constraint:** rollback only works if the previous image is still in the VPS's local Docker cache. `docker image prune` runs *only* on successful deploys, so the fallback image is preserved across a failure — but manual `docker image prune -a` or long-idle VPSs can evict it. If no previous image is available, the workflow logs `No previous image available to roll back to.` and exits non-zero.
+
+### Manually Redeploying a Previous Version
+
+If you need to roll back *after* a deploy that already succeeded (e.g. a bug slipped past the health check):
+
+- **Re-run the last good GHA run:** Actions tab → pick the last green Deploy run → **Re-run all jobs**. Rebuilds and redeploys that commit's image.
+- **Tag an earlier commit:** `git tag v1.2.3 <commit-sha> && git push --tags` triggers a fresh CD run against that commit.
 
 ### Quick Rollback (on VPS)
 
