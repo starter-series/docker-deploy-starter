@@ -25,6 +25,25 @@
 
 ## 빠른 시작
 
+**[create-starter](https://github.com/starter-series/create-starter) 사용** (권장):
+
+```bash
+npx @starter-series/create my-service --template docker-deploy
+cd my-service
+# 내 앱 Dockerfile + 코드 추가 후:
+docker compose up
+```
+
+**또는 직접 clone:**
+
+```bash
+git clone https://github.com/starter-series/docker-deploy-starter my-service
+cd my-service
+docker compose up
+```
+
+**전체 셋업 (내 앱 가져오기):**
+
 ```bash
 # 1. GitHub에서 "Use this template" 클릭 (또는 clone)
 git clone https://github.com/starter-series/docker-deploy-starter.git my-app
