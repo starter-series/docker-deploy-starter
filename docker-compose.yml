@@ -10,6 +10,15 @@ services:
       # Uncomment for apps with dependencies (node_modules, vendor, venv, etc.):
       # - /app/node_modules
     restart: unless-stopped
+    # Hardening defaults — override per workload if your app actually needs the
+    # capability (e.g. binding to ports <1024 → keep `cap_add: [NET_BIND_SERVICE]`).
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:${PORT:-3000}/health || exit 1"]
       interval: 10s

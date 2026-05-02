@@ -11,8 +11,10 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  packages: write
+  contents: write       # Create the GitHub Release
+  packages: write       # Push to GHCR
+  id-token: write       # OIDC for actions/attest-build-provenance
+  attestations: write   # Persist the build provenance attestation
 
 jobs:
   ci:
@@ -70,6 +72,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -79,6 +82,23 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          upload-artifact: true
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
       - name: Preflight — verify ~/.env.app on VPS
         uses: appleboy/ssh-action@v1
@@ -117,7 +137,10 @@ jobs:
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1
         env:
-          IMAGE: ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          # Pin by digest, not tag — guarantees the VPS pulls exactly what we just
+          # built. A tag-based deploy can race a second concurrent build that
+          # rewrites :latest / :<version> mid-rollout.
+          IMAGE: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
           PORT: ${{ secrets.APP_PORT || '3000' }}
         with:
           host: ${{ secrets.VPS_HOST }}
