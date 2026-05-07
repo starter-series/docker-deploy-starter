@@ -18,9 +18,9 @@ jobs:
         run: |
           VERSION=$(cat VERSION)
           if [ "$VERSION" = "1.0.0" ] && [ -f "app/server.js" ]; then
-            echo "is_template=true" >> $GITHUB_OUTPUT
+            echo "is_template=true" >> "$GITHUB_OUTPUT"
           else
-            echo "is_template=false" >> $GITHUB_OUTPUT
+            echo "is_template=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create setup checklist

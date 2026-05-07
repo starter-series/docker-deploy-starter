@@ -33,9 +33,9 @@ jobs:
         id: version
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
           else
-            echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+            echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Check tag does not exist
