@@ -6,7 +6,7 @@
 # refreshes this on a schedule. Node 20 reached EOL on 2026-04-30, so
 # this targets Node 22 (active LTS through 2027-04).
 
-FROM node:22-alpine@sha256:cb15fca92530d7ac113467696cf1001208dac49c3c64355fd1348c11a88ddf8f
+FROM node:22-alpine@sha256:8ea2348b068a9544dae7317b4f3aafcdc032df1647bb7d768a05a5cad1a7683f
 
 WORKDIR /app
 COPY --chown=node:node app/ .
