@@ -14,7 +14,7 @@ We will respond within 48 hours and work with you to resolve the issue.
 
 This template includes automated security checks in CI:
 
-- **Dependency audit** — `npm audit` on every push (HIGH/CRITICAL threshold)
+- **Image vulnerability scan** — Trivy scans the built image on every push (fails the build on CRITICAL/HIGH)
 - **Secret leak detection** — [gitleaks](https://github.com/gitleaks/gitleaks) scans every commit
 - **Dependency updates** — [Dependabot](https://docs.github.com/en/code-security/dependabot) monitors for vulnerable dependencies
 - **Dockerfile lint** — [Hadolint](https://github.com/hadolint/hadolint) enforces best practices
