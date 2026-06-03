@@ -55,14 +55,15 @@ jobs:
         run: docker build -t docker-deploy-starter:test .
 
       - name: Scan image for vulnerabilities
-        uses: aquasecurity/trivy-action@v0.36.0
+        # Pinned by SHA — trivy-action suffered tag hijacks in 2025-08 and 2026-03.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: docker-deploy-starter:test
           exit-code: '1'
-          # HIGH CVEs in Alpine base images and npm's bundled node_modules
-          # are rarely actionable by a template and keep CI permanently red.
-          # Gate on CRITICAL only; let CodeQL + Dependabot + npm audit carry
-          # the day-to-day security signal.
+          # Gate on CRITICAL only. HIGH would also fail on base-image CVEs the
+          # template cannot fix (e.g. a ReDoS in the node image's bundled npm),
+          # turning CI red on every node release; CodeQL + Dependabot carry the
+          # day-to-day signal. ignore-unfixed drops CVEs with no upstream patch.
           severity: CRITICAL
           ignore-unfixed: true
 

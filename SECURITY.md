@@ -14,11 +14,10 @@ We will respond within 48 hours and work with you to resolve the issue.
 
 This template includes automated security checks in CI:
 
-- **Dependency audit** — `npm audit` on every push (HIGH/CRITICAL threshold)
 - **Secret leak detection** — [gitleaks](https://github.com/gitleaks/gitleaks) scans every commit
 - **Dependency updates** — [Dependabot](https://docs.github.com/en/code-security/dependabot) monitors for vulnerable dependencies
 - **Dockerfile lint** — [Hadolint](https://github.com/hadolint/hadolint) enforces best practices
-- **Container scan** — [Trivy](https://github.com/aquasecurity/trivy) detects CRITICAL/HIGH CVEs in built images
+- **Container scan** — [Trivy](https://github.com/aquasecurity/trivy) detects CRITICAL CVEs in built images (HIGH excluded to avoid unfixable base-image noise)
 
 ## Best Practices
 
