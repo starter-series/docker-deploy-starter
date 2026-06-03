@@ -106,7 +106,7 @@ docker compose up
 | Lint Dockerfile | [Hadolint](https://github.com/hadolint/hadolint) checks for best practices |
 | Validate compose | Verifies `docker-compose.yml` syntax |
 | Build test | Builds the Docker image to catch build errors |
-| Scan image | [Trivy](https://github.com/aquasecurity/trivy) scans for CRITICAL/HIGH CVEs |
+| Scan image | [Trivy](https://github.com/aquasecurity/trivy) scans for CRITICAL CVEs |
 
 ### Security & Maintenance
 

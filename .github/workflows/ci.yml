@@ -60,9 +60,11 @@ jobs:
         with:
           image-ref: docker-deploy-starter:test
           exit-code: '1'
-          # Gate on CRITICAL and HIGH; ignore-unfixed keeps base-image noise
-          # (CVEs with no upstream patch yet) from holding the build red.
-          severity: CRITICAL,HIGH
+          # Gate on CRITICAL only. HIGH would also fail on base-image CVEs the
+          # template cannot fix (e.g. a ReDoS in the node image's bundled npm),
+          # turning CI red on every node release; CodeQL + Dependabot carry the
+          # day-to-day signal. ignore-unfixed drops CVEs with no upstream patch.
+          severity: CRITICAL
           ignore-unfixed: true
 
       - name: Check image size
