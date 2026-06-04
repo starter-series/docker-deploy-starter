@@ -71,7 +71,7 @@ docker compose up
 ├── docker-compose.yml          # Local development
 ├── .github/
 │   ├── workflows/
-│   │   ├── ci.yml              # Dockerfile lint, compose validate, build test
+│   │   ├── ci.yml              # Lint, compose validate, build test, JS tests
 │   │   ├── cd.yml              # Build → GHCR push → VPS deploy via SSH
 │   │   └── setup.yml           # Auto setup checklist on first use
 │   └── PULL_REQUEST_TEMPLATE.md
@@ -81,21 +81,58 @@ docker compose up
 │   ├── HTTPS_SETUP.md          # HTTPS with Caddy reverse proxy
 │   └── VPS_DEPLOY.md           # VPS SSH deployment guide
 ├── scripts/
-│   └── bump-version.js         # Version bump utility
+│   ├── bump-version.js         # Version bump utility (validates VERSION)
+│   └── deploy-with-rollback.sh # Health-checked deploy + auto rollback
+├── tests/                      # node:test suites + rollback integration test
+├── package.json                # `npm test` runner
 └── VERSION                     # Current version
 ```
 
 ## Features
 
 - **Language agnostic** — Swap the Dockerfile for any language (Node, Python, Go, Rust, Java, static)
-- **CI Pipeline** — Dockerfile lint (hadolint), docker-compose validation, build verification, Trivy CVE scan on every push
+- **CI Pipeline** — Dockerfile lint (hadolint), docker-compose validation, build verification, Trivy CVE scan, plus `node:test` suites (version-bump + `/health`) on every push
 - **CD Pipeline** — Build → push to GHCR → health-checked deploy to VPS via docker compose + auto GitHub Release
+- **Real health checks** — `/health` reflects a readiness signal and can return `503`; wire your own dependency probes (DB, cache, …) so failed deploys actually roll back
 - **Dockerfile examples** — Multi-stage builds for Node, Python, Go, Rust, Java in docs
-- **Version management** — `node scripts/bump-version.js patch/minor/major`
+- **Version management** — `node scripts/bump-version.js patch/minor/major` (validates `VERSION`, fails loudly on a malformed file instead of writing garbage)
 - **Local dev** — `docker compose up` with volume mounts for live reload
 - **HTTPS guide** — Caddy reverse proxy with automatic TLS
 - **Deploy guides** — Step-by-step docs for GHCR and VPS setup
 - **Template setup** — Auto-creates setup checklist issue on first use
+
+## Health checks (`/health`)
+
+The deploy pipeline rolls back when the new container fails its health check
+(`docker compose up -d --wait`). That safety net only works if `/health` can
+actually report failure — a `/health` that always returns `200` makes every
+deploy look healthy and silently disables rollback.
+
+- **Currently implemented** — `app/server.js` exposes `/health` backed by a
+  list of async readiness checks. All checks passing → `200 {"status":"ok"}`.
+  Any check returning falsy or throwing → `503 {"status":"unavailable"}`.
+  Unknown paths return `404` (the example server is not a catch-all). The
+  default check only confirms the HTTP listener is bound.
+- **Design intent** — fail-closed: a dependency outage should surface as an
+  unhealthy container so the orchestrator stops routing traffic and the CD
+  rollback triggers, rather than serving a broken app behind a green check.
+- **You must wire real checks.** Replace the example app and register probes
+  for the dependencies your app actually needs:
+
+  ```js
+  const { createApp } = require('./server.js');
+  const { server } = createApp({
+    readinessChecks: [
+      async () => { await db.query('SELECT 1'); return true; },
+      async () => (await redis.ping()) === 'PONG',
+    ],
+  });
+  server.listen(process.env.PORT || 3000);
+  ```
+
+- **Non-goals** — this is not a metrics/liveness framework. It is the minimal
+  readiness contract the rollback logic depends on; swap in your stack's
+  health library if you need more.
 
 ## CI/CD
 
@@ -154,10 +191,20 @@ docker compose up
 # Rebuild after Dockerfile changes
 docker compose up --build
 
-# Bump version
+# Bump version (fails loudly if VERSION is malformed — never writes 1.2.NaN)
 node scripts/bump-version.js patch   # 1.0.0 → 1.0.1
 node scripts/bump-version.js minor   # 1.0.0 → 1.1.0
 node scripts/bump-version.js major   # 1.0.0 → 2.0.0
+```
+
+### Tests
+
+```bash
+# Node tests: version-bump validation + /health (200) and unknown path (404)
+npm test
+
+# Rollback integration test (needs Docker; also run in CI)
+bash tests/rollback-integration.sh
 ```
 
 ## Switching Languages

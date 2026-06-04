@@ -87,3 +87,19 @@ jobs:
 
       - name: Run rollback integration test
         run: bash tests/rollback-integration.sh
+
+  node-tests:
+    # Behavioral unit/integration tests for the template's own scripts and
+    # example app: scripts/bump-version.js validation + app/server.js
+    # /health and 404 behavior. Runs the real code via node:test.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Run JS tests
+        run: npm test
