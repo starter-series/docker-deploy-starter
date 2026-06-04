@@ -11,8 +11,14 @@
 #      rollback restores the good image. After the attempt, /health must
 #      still return 200 from the good image.
 #   3. First deploy of a bad image (no previous image) fails with a
-#      non-zero exit and leaves nothing healthy — the script must not
-#      silently swallow the failure.
+#      non-zero exit and leaves the system quiesced: docker-compose.yml is
+#      gone, docker-compose.failed.yml is preserved for forensics, and no
+#      container is left running. The script must not silently swallow the
+#      failure nor leak an unhealthy container.
+#   4. Both images unhealthy: a previous (unhealthy) container exists and the
+#      new deploy is also unhealthy, so rollback to the previous fails too.
+#      The script must end with the system quiesced (compose moved aside, no
+#      container running) rather than cascading or leaking containers.
 
 set -euo pipefail
 
@@ -30,8 +36,11 @@ cleanup() {
   if [ -f "$WORK_DIR/docker-compose.yml" ]; then
     (cd "$WORK_DIR" && docker compose down -v --remove-orphans >/dev/null 2>&1 || true)
   fi
+  if [ -f "$WORK_DIR/docker-compose.failed.yml" ]; then
+    (cd "$WORK_DIR" && docker compose -f docker-compose.failed.yml down -v --remove-orphans >/dev/null 2>&1 || true)
+  fi
   rm -rf "$WORK_DIR"
-  docker rmi -f "$GOOD_IMAGE" "$BAD_IMAGE" >/dev/null 2>&1 || true
+  docker rmi -f "$GOOD_IMAGE" "$BAD_IMAGE" "rollback-test/bad:prev" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -46,6 +55,43 @@ check_health() {
   done
   echo "health check did not return build=${expected_build} (last body: ${body:-<empty>})" >&2
   return 1
+}
+
+# Count app containers still tracked by either the live or the failed compose
+# file in WORK_DIR. After a failed deploy with no successful rollback, this
+# must be zero (the script is responsible for tearing the container down).
+running_app_containers() {
+  local count=0 ids
+  if [ -f "$WORK_DIR/docker-compose.yml" ]; then
+    ids="$(cd "$WORK_DIR" && docker compose ps -q app 2>/dev/null || true)"
+    [ -n "$ids" ] && count=$((count + $(echo "$ids" | grep -c .)))
+  fi
+  if [ -f "$WORK_DIR/docker-compose.failed.yml" ]; then
+    ids="$(cd "$WORK_DIR" && docker compose -f docker-compose.failed.yml ps -q app 2>/dev/null || true)"
+    [ -n "$ids" ] && count=$((count + $(echo "$ids" | grep -c .)))
+  fi
+  echo "$count"
+}
+
+# Assert the deployment is fully quiesced after a terminal failure:
+#   - docker-compose.yml has been moved aside (gone)
+#   - docker-compose.failed.yml is preserved for forensics
+#   - nothing the deploy created is still running
+#   - nothing answers /health on the port
+assert_quiesced() {
+  local label="$1"
+  [ ! -f "$WORK_DIR/docker-compose.yml" ] \
+    || fail "$label: docker-compose.yml should be gone (moved to .failed.yml)"
+  [ -f "$WORK_DIR/docker-compose.failed.yml" ] \
+    || fail "$label: docker-compose.failed.yml should be preserved for forensics"
+  local n
+  n="$(running_app_containers)"
+  [ "$n" -eq 0 ] \
+    || fail "$label: expected no running app containers, found $n"
+  if curl -sf "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
+    fail "$label: something is still serving /health on port ${PORT}"
+  fi
+  pass "$label: system quiesced (no compose, .failed.yml saved, nothing running)"
 }
 
 echo "==> Building fixture images"
@@ -96,9 +142,10 @@ fi
 rm -f "$WORK_DIR/docker-compose.yml"
 
 # ---------------------------------------------------------------------------
-# Scenario 3: first deploy of a bad image (no previous) must fail loudly.
+# Scenario 3: first deploy of a bad image (no previous) must fail loudly AND
+# leave the system quiesced.
 # ---------------------------------------------------------------------------
-echo "==> Scenario 3: first deploy of bad image (no previous) — expect failure"
+echo "==> Scenario 3: first deploy of bad image (no previous) — expect failure + quiesce"
 set +e
 IMAGE="$BAD_IMAGE" PORT="$PORT" DEPLOY_DIR="$WORK_DIR" SKIP_PULL=1 \
   bash "$SCRIPT"
@@ -108,6 +155,70 @@ if [ "$rc" -eq 0 ]; then
   fail "bad image first deploy returned 0 — failure was swallowed"
 fi
 pass "bad image first deploy returned non-zero ($rc)"
+
+# The failed first deploy must have moved the compose aside, kept the
+# forensic copy, and left nothing running.
+assert_quiesced "scenario 3"
+
+# Fresh state before scenario 4.
+(cd "$WORK_DIR" && docker compose down -v --remove-orphans >/dev/null 2>&1 || true)
+if [ -f "$WORK_DIR/docker-compose.failed.yml" ]; then
+  (cd "$WORK_DIR" && docker compose -f docker-compose.failed.yml down -v --remove-orphans >/dev/null 2>&1 || true)
+fi
+rm -f "$WORK_DIR/docker-compose.yml" "$WORK_DIR/docker-compose.failed.yml"
+
+# ---------------------------------------------------------------------------
+# Scenario 4: both images unhealthy. A previous (unhealthy) container is
+# already running and tracked by a compose file, then a new bad deploy is
+# attempted. Rollback targets the previous image, which is ALSO unhealthy, so
+# rollback fails too. The script must end with the system quiesced — not
+# cascading restarts, not leaking the unhealthy container.
+# ---------------------------------------------------------------------------
+echo "==> Scenario 4: both images unhealthy — expect failure + quiesce"
+
+# Pre-seed a running-but-unhealthy "previous" container so PREV_IMAGE
+# detection finds a bad image to (fail to) roll back to. We bring it up
+# WITHOUT --wait so the unhealthy container stays running and is recorded in a
+# compose file the deploy script will discover.
+BAD_PREV_IMAGE="rollback-test/bad:prev"
+docker tag "$BAD_IMAGE" "$BAD_PREV_IMAGE" >/dev/null 2>&1
+cat > "$WORK_DIR/docker-compose.yml" <<EOF
+services:
+  app:
+    image: $BAD_PREV_IMAGE
+    environment:
+      PORT: "${PORT}"
+    ports:
+      - "${PORT}:${PORT}"
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:${PORT}/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+EOF
+(cd "$WORK_DIR" && docker compose up -d >/dev/null 2>&1)
+# Sanity: a previous container is actually running before we attempt the deploy.
+prev_running="$(running_app_containers)"
+[ "$prev_running" -ge 1 ] || fail "scenario 4 setup: previous unhealthy container is not running"
+pass "scenario 4 setup: previous unhealthy container is running (PREV will be detected)"
+
+set +e
+IMAGE="$BAD_IMAGE" PORT="$PORT" DEPLOY_DIR="$WORK_DIR" SKIP_PULL=1 \
+  bash "$SCRIPT"
+rc=$?
+set -e
+if [ "$rc" -eq 0 ]; then
+  fail "both-unhealthy deploy returned 0 — failure was swallowed"
+fi
+pass "both-unhealthy deploy returned non-zero ($rc)"
+
+# Even though rollback was attempted and also failed, the system must be
+# quiesced: compose moved aside, forensic copy kept, nothing running.
+assert_quiesced "scenario 4"
+
+docker rmi -f "$BAD_PREV_IMAGE" >/dev/null 2>&1 || true
 
 echo ""
 echo "All rollback integration scenarios passed."

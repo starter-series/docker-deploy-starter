@@ -71,7 +71,7 @@ docker compose up
 ├── docker-compose.yml          # 로컬 개발용
 ├── .github/
 │   ├── workflows/
-│   │   ├── ci.yml              # Dockerfile 린트, compose 검증, 빌드 테스트
+│   │   ├── ci.yml              # 린트, compose 검증, 빌드 테스트, JS 테스트
 │   │   ├── cd.yml              # 빌드 → GHCR 푸시 → VPS SSH 배포
 │   │   └── setup.yml           # 첫 사용 시 셋업 체크리스트 자동 생성
 │   └── PULL_REQUEST_TEMPLATE.md
@@ -81,21 +81,58 @@ docker compose up
 │   ├── HTTPS_SETUP.md          # Caddy 리버스 프록시 + 자동 HTTPS
 │   └── VPS_DEPLOY.md           # VPS SSH 배포 가이드
 ├── scripts/
-│   └── bump-version.js         # 버전 범프
+│   ├── bump-version.js         # 버전 범프 (VERSION 검증)
+│   └── deploy-with-rollback.sh # 헬스체크 배포 + 자동 롤백
+├── tests/                      # node:test 스위트 + 롤백 통합 테스트
+├── package.json                # `npm test` 러너
 └── VERSION                     # 현재 버전
 ```
 
 ## 기능
 
 - **언어 무관** — Dockerfile만 바꾸면 Node, Python, Go, Rust, Java, 정적 사이트 모두 가능
-- **CI 파이프라인** — Dockerfile 린트 (hadolint), docker-compose 검증, 빌드 테스트
+- **CI 파이프라인** — Dockerfile 린트 (hadolint), docker-compose 검증, 빌드 테스트, 그리고 매 푸시마다 `node:test` 스위트 (버전 범프 + `/health`) 실행
 - **CD 파이프라인** — 빌드 → GHCR 푸시 → docker compose 헬스체크 기반 VPS 배포 + GitHub Release 자동 생성
+- **실제 헬스체크** — `/health`가 준비 상태(readiness)를 반영하며 `503`을 반환할 수 있습니다. 배포 실패 시 실제로 롤백되도록 의존성 프로브(DB, 캐시 등)를 직접 연결하십시오
 - **Dockerfile 예시** — Node, Python, Go, Rust, Java용 멀티스테이지 빌드 docs 제공
-- **버전 관리** — `node scripts/bump-version.js patch/minor/major`
+- **버전 관리** — `node scripts/bump-version.js patch/minor/major` (`VERSION`을 검증하며, 파일이 손상된 경우 쓰레기 값을 쓰지 않고 명확히 실패합니다)
 - **로컬 개발** — `docker compose up`으로 볼륨 마운트 + 라이브 리로드
 - **HTTPS 가이드** — Caddy 리버스 프록시 + 자동 TLS
 - **배포 가이드** — GHCR, VPS 설정 단계별 문서
 - **템플릿 셋업** — 첫 사용 시 체크리스트 이슈 자동 생성
+
+## 헬스체크 (`/health`)
+
+배포 파이프라인은 새 컨테이너가 헬스체크에 실패하면 롤백합니다
+(`docker compose up -d --wait`). 이 안전장치는 `/health`가 실제로 실패를
+보고할 수 있을 때만 동작합니다. 항상 `200`을 반환하는 `/health`는 모든
+배포를 정상으로 보이게 만들어 롤백을 조용히 무력화합니다.
+
+- **현재 구현됨** — `app/server.js`는 비동기 readiness 체크 목록을 기반으로
+  `/health`를 제공합니다. 모든 체크 통과 시 `200 {"status":"ok"}`, 하나라도
+  falsy를 반환하거나 예외를 던지면 `503 {"status":"unavailable"}`을
+  반환합니다. 알 수 없는 경로는 `404`를 반환합니다(예시 서버는 모든 경로를
+  받는 catch-all이 아닙니다). 기본 체크는 HTTP 리스너 바인딩만 확인합니다.
+- **설계 의도** — fail-closed 원칙: 의존성 장애는 컨테이너를 unhealthy 상태로
+  드러내어 오케스트레이터가 트래픽 라우팅을 멈추고 CD 롤백이 작동하도록 해야
+  하며, 정상 체크 뒤에서 고장난 앱을 계속 서빙해서는 안 됩니다.
+- **실제 체크는 직접 연결하셔야 합니다.** 예시 앱을 교체하고, 앱이 실제로
+  필요로 하는 의존성에 대한 프로브를 등록하십시오:
+
+  ```js
+  const { createApp } = require('./server.js');
+  const { server } = createApp({
+    readinessChecks: [
+      async () => { await db.query('SELECT 1'); return true; },
+      async () => (await redis.ping()) === 'PONG',
+    ],
+  });
+  server.listen(process.env.PORT || 3000);
+  ```
+
+- **비목표(Non-goals)** — 이것은 메트릭/liveness 프레임워크가 아닙니다. 롤백
+  로직이 의존하는 최소한의 readiness 계약일 뿐이며, 더 필요하면 사용하시는
+  스택의 헬스 라이브러리로 교체하십시오.
 
 ## CI/CD
 
@@ -153,10 +190,20 @@ docker compose up
 # Dockerfile 변경 후 재빌드
 docker compose up --build
 
-# 버전 범프
+# 버전 범프 (VERSION이 손상되면 1.2.NaN을 쓰지 않고 명확히 실패합니다)
 node scripts/bump-version.js patch   # 1.0.0 → 1.0.1
 node scripts/bump-version.js minor   # 1.0.0 → 1.1.0
 node scripts/bump-version.js major   # 1.0.0 → 2.0.0
+```
+
+### 테스트
+
+```bash
+# Node 테스트: 버전 범프 검증 + /health (200) 및 알 수 없는 경로 (404)
+npm test
+
+# 롤백 통합 테스트 (Docker 필요, CI에서도 실행됨)
+bash tests/rollback-integration.sh
 ```
 
 ## 언어 변경

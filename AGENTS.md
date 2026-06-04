@@ -10,13 +10,16 @@ Dockerfile        → Example Node.js (swap for your language, see docs/DOCKERFI
 docker-compose.yml → Local dev + VPS deployment
 .env.example      → Environment variables template
 VERSION           → Single source of truth for version (1.0.0)
-scripts/bump-version.js → Version bumping (patch/minor/major)
+scripts/bump-version.js → Version bumping (patch/minor/major); validates VERSION, fails on malformed
+scripts/deploy-with-rollback.sh → Health-checked deploy with auto rollback (shared by cd.yml + ci.yml)
+tests/            → node:test suites (bump-version, server /health) + rollback-integration.sh
+package.json      → Root test runner (`npm test` → node --test)
 docs/             → Setup guides (VPS, GHCR, HTTPS, Dockerfile examples)
 ```
 
 ## CI/CD Pipeline
 
-- **ci.yml**: Runs on push/PR to main. Hadolint lint + docker-compose validate + Docker build test + Trivy CVE scan (CRITICAL/HIGH). No secrets needed.
+- **ci.yml**: Runs on push/PR to main. Hadolint lint + docker-compose validate + Docker build test + Trivy CVE scan (CRITICAL) + rollback integration test + `node:test` JS suites (`npm test`). No secrets needed.
 - **cd.yml**: Manual trigger OR tag push (v*). Builds image (Buildx + GHA cache) → pushes to GHCR → deploys to VPS via SSH → cleans old images → creates GitHub Release. Concurrency controlled (no parallel deploys).
 - **setup.yml**: First push only. Auto-creates GitHub Issue with setup checklist.
 
@@ -48,6 +51,8 @@ docs/             → Setup guides (VPS, GHCR, HTTPS, Dockerfile examples)
   - **Why**: 같은 버전을 두 번 배포하면 GHCR 태그 충돌 + GitHub Release 중복 생성. 이 guard가 없으면 CI 통과해도 CD에서 조용히 깨짐.
 - Health check pattern in Dockerfile and docker-compose.yml
   - **Why**: `docker compose up -d --wait`가 health check 통과를 기다림. health check 없으면 컨테이너 시작 = 배포 성공으로 판단해서 깨진 앱이 배포될 수 있음.
+- `/health` must stay able to FAIL (`app/server.js` readiness checks → 503)
+  - **Why**: 롤백은 unhealthy 컨테이너 감지에 의존. `/health`를 항상 200으로 고정하면 깨진 배포도 정상으로 보여 롤백이 무력화됨. 의존성 프로브는 `createApp({ readinessChecks })`로 연결.
 - Concurrency control in cd.yml
   - **Why**: 동시에 두 배포가 실행되면 SSH에서 race condition 발생. `cancel-in-progress: false`로 순서대로 실행.
 

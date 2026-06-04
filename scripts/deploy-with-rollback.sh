@@ -89,17 +89,23 @@ if [ -n "$PREV_IMAGE" ] && [ "$PREV_IMAGE" != "$IMAGE" ]; then
   if docker compose up -d --wait; then
     echo "Rollback succeeded."
   else
-    # Rollback failed too — remove the broken compose file so the next
-    # deploy starts from a clean slate (PREV_IMAGE detection on a broken
-    # container otherwise loops the cascade). Save a copy for forensics.
+    # Rollback failed too — tear the broken container down BEFORE moving the
+    # compose file (otherwise `docker compose down` has no compose file to act
+    # on and would leak the unhealthy container), then remove the broken
+    # compose so the next deploy starts from a clean slate (PREV_IMAGE
+    # detection on a broken container otherwise loops the cascade). Save a
+    # copy for forensics.
     echo "::error::Rollback also failed — clearing compose file. Saved as docker-compose.failed.yml for investigation."
-    mv docker-compose.yml docker-compose.failed.yml 2>/dev/null || true
     docker compose down --remove-orphans >/dev/null 2>&1 || true
+    mv docker-compose.yml docker-compose.failed.yml 2>/dev/null || true
   fi
 else
   echo "No previous image available to roll back to."
-  # First deploy of a bad image — same cleanup so we don't carry the
-  # broken compose into the next attempt.
+  # First deploy of a bad image — tear the failed container down (BEFORE
+  # moving the compose file, so `docker compose down` can find it) so we
+  # don't leak an unhealthy container, then move the broken compose aside so
+  # we don't carry it into the next attempt.
+  docker compose down --remove-orphans >/dev/null 2>&1 || true
   mv docker-compose.yml docker-compose.failed.yml 2>/dev/null || true
 fi
 exit 1
