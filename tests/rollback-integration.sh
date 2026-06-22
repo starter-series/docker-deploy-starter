@@ -32,12 +32,20 @@ WORK_DIR="$(mktemp -d)"
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+elif docker-compose version >/dev/null 2>&1; then
+  COMPOSE=(docker-compose)
+else
+  fail "Docker Compose is required (docker compose or docker-compose)"
+fi
+
 cleanup() {
   if [ -f "$WORK_DIR/docker-compose.yml" ]; then
-    (cd "$WORK_DIR" && docker compose down -v --remove-orphans >/dev/null 2>&1 || true)
+    (cd "$WORK_DIR" && "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true)
   fi
   if [ -f "$WORK_DIR/docker-compose.failed.yml" ]; then
-    (cd "$WORK_DIR" && docker compose -f docker-compose.failed.yml down -v --remove-orphans >/dev/null 2>&1 || true)
+    (cd "$WORK_DIR" && "${COMPOSE[@]}" -f docker-compose.failed.yml down -v --remove-orphans >/dev/null 2>&1 || true)
   fi
   rm -rf "$WORK_DIR"
   docker rmi -f "$GOOD_IMAGE" "$BAD_IMAGE" "rollback-test/bad:prev" >/dev/null 2>&1 || true
@@ -63,14 +71,27 @@ check_health() {
 running_app_containers() {
   local count=0 ids
   if [ -f "$WORK_DIR/docker-compose.yml" ]; then
-    ids="$(cd "$WORK_DIR" && docker compose ps -q app 2>/dev/null || true)"
+    ids="$(cd "$WORK_DIR" && "${COMPOSE[@]}" ps -q app 2>/dev/null || true)"
     [ -n "$ids" ] && count=$((count + $(echo "$ids" | grep -c .)))
   fi
   if [ -f "$WORK_DIR/docker-compose.failed.yml" ]; then
-    ids="$(cd "$WORK_DIR" && docker compose -f docker-compose.failed.yml ps -q app 2>/dev/null || true)"
+    ids="$(cd "$WORK_DIR" && "${COMPOSE[@]}" -f docker-compose.failed.yml ps -q app 2>/dev/null || true)"
     [ -n "$ids" ] && count=$((count + $(echo "$ids" | grep -c .)))
   fi
   echo "$count"
+}
+
+assert_compose_hardened() {
+  local label="$1"
+  grep -q '^    read_only: true$' "$WORK_DIR/docker-compose.yml" \
+    || fail "$label: compose missing read_only hardening"
+  grep -q '^      - /tmp$' "$WORK_DIR/docker-compose.yml" \
+    || fail "$label: compose missing tmpfs /tmp"
+  grep -q '^      - ALL$' "$WORK_DIR/docker-compose.yml" \
+    || fail "$label: compose missing cap_drop ALL"
+  grep -q '^      - no-new-privileges:true$' "$WORK_DIR/docker-compose.yml" \
+    || fail "$label: compose missing no-new-privileges"
+  pass "$label: compose includes hardening defaults"
 }
 
 # Assert the deployment is fully quiesced after a terminal failure:
@@ -110,6 +131,7 @@ else
 fi
 check_health good || fail "good image not serving /health"
 pass "good image /health responds with build=good"
+assert_compose_hardened "scenario 1"
 
 # ---------------------------------------------------------------------------
 # Scenario 2: deploying the bad image on top must fail AND rollback must
@@ -136,9 +158,10 @@ if grep -q "image: $GOOD_IMAGE" "$WORK_DIR/docker-compose.yml"; then
 else
   fail "compose file does not point to good image after rollback"
 fi
+assert_compose_hardened "scenario 2"
 
 # Tear down before scenario 3 (we want a truly fresh state with no PREV_IMAGE).
-(cd "$WORK_DIR" && docker compose down -v --remove-orphans >/dev/null 2>&1 || true)
+(cd "$WORK_DIR" && "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true)
 rm -f "$WORK_DIR/docker-compose.yml"
 
 # ---------------------------------------------------------------------------
@@ -161,9 +184,9 @@ pass "bad image first deploy returned non-zero ($rc)"
 assert_quiesced "scenario 3"
 
 # Fresh state before scenario 4.
-(cd "$WORK_DIR" && docker compose down -v --remove-orphans >/dev/null 2>&1 || true)
+(cd "$WORK_DIR" && "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true)
 if [ -f "$WORK_DIR/docker-compose.failed.yml" ]; then
-  (cd "$WORK_DIR" && docker compose -f docker-compose.failed.yml down -v --remove-orphans >/dev/null 2>&1 || true)
+  (cd "$WORK_DIR" && "${COMPOSE[@]}" -f docker-compose.failed.yml down -v --remove-orphans >/dev/null 2>&1 || true)
 fi
 rm -f "$WORK_DIR/docker-compose.yml" "$WORK_DIR/docker-compose.failed.yml"
 
@@ -198,7 +221,7 @@ services:
       retries: 3
       start_period: 5s
 EOF
-(cd "$WORK_DIR" && docker compose up -d >/dev/null 2>&1)
+(cd "$WORK_DIR" && "${COMPOSE[@]}" up -d >/dev/null 2>&1)
 # Sanity: a previous container is actually running before we attempt the deploy.
 prev_running="$(running_app_containers)"
 [ "$prev_running" -ge 1 ] || fail "scenario 4 setup: previous unhealthy container is not running"

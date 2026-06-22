@@ -69,6 +69,7 @@ docker compose up
 │   └── package.json
 ├── Dockerfile                  # Example build (swap for your language)
 ├── docker-compose.yml          # Local development
+├── .env.example                # Local/prod env template
 ├── .github/
 │   ├── workflows/
 │   │   ├── ci.yml              # Lint, compose validate, build test, JS tests
@@ -85,6 +86,7 @@ docker compose up
 │   └── deploy-with-rollback.sh # Health-checked deploy + auto rollback
 ├── tests/                      # node:test suites + rollback integration test
 ├── package.json                # `npm test` runner
+├── package-lock.json           # npm audit/reproducibility lockfile
 └── VERSION                     # Current version
 ```
 
