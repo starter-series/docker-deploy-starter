@@ -33,6 +33,15 @@ set -euo pipefail
 ENV_FILE="${ENV_FILE:-}"
 SKIP_PULL="${SKIP_PULL:-0}"
 
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+elif docker-compose version >/dev/null 2>&1; then
+  COMPOSE=(docker-compose)
+else
+  echo "::error::Docker Compose is required (docker compose or docker-compose)." >&2
+  exit 1
+fi
+
 mkdir -p "$DEPLOY_DIR"
 cd "$DEPLOY_DIR"
 
@@ -50,6 +59,13 @@ write_compose() {
     echo "    ports:"
     echo "      - \"${PORT}:${PORT}\""
     echo "    restart: unless-stopped"
+    echo "    read_only: true"
+    echo "    tmpfs:"
+    echo "      - /tmp"
+    echo "    cap_drop:"
+    echo "      - ALL"
+    echo "    security_opt:"
+    echo "      - no-new-privileges:true"
     echo "    healthcheck:"
     echo "      test: [\"CMD-SHELL\", \"wget -qO /dev/null http://localhost:${PORT}/health || exit 1\"]"
     echo "      interval: 5s"
@@ -61,8 +77,8 @@ write_compose() {
 
 # Capture currently running image for potential rollback.
 PREV_IMAGE=""
-if docker compose ps -q app >/dev/null 2>&1; then
-  CID="$(docker compose ps -q app || true)"
+if "${COMPOSE[@]}" ps -q app >/dev/null 2>&1; then
+  CID="$("${COMPOSE[@]}" ps -q app || true)"
   if [ -n "$CID" ]; then
     PREV_IMAGE="$(docker inspect --format '{{.Config.Image}}' "$CID" 2>/dev/null || true)"
   fi
@@ -73,10 +89,10 @@ echo "Target image:   ${IMAGE}"
 write_compose "$IMAGE"
 
 if [ "$SKIP_PULL" != "1" ]; then
-  docker compose pull
+  "${COMPOSE[@]}" pull
 fi
 
-if docker compose up -d --wait; then
+if "${COMPOSE[@]}" up -d --wait; then
   echo "Deploy succeeded."
   docker image prune -f >/dev/null 2>&1 || true
   exit 0
@@ -86,7 +102,7 @@ echo "::error::Deploy health check failed."
 if [ -n "$PREV_IMAGE" ] && [ "$PREV_IMAGE" != "$IMAGE" ]; then
   echo "Rolling back to $PREV_IMAGE"
   write_compose "$PREV_IMAGE"
-  if docker compose up -d --wait; then
+  if "${COMPOSE[@]}" up -d --wait; then
     echo "Rollback succeeded."
   else
     # Rollback failed too — tear the broken container down BEFORE moving the
@@ -96,7 +112,7 @@ if [ -n "$PREV_IMAGE" ] && [ "$PREV_IMAGE" != "$IMAGE" ]; then
     # detection on a broken container otherwise loops the cascade). Save a
     # copy for forensics.
     echo "::error::Rollback also failed — clearing compose file. Saved as docker-compose.failed.yml for investigation."
-    docker compose down --remove-orphans >/dev/null 2>&1 || true
+    "${COMPOSE[@]}" down --remove-orphans >/dev/null 2>&1 || true
     mv docker-compose.yml docker-compose.failed.yml 2>/dev/null || true
   fi
 else
@@ -105,7 +121,7 @@ else
   # moving the compose file, so `docker compose down` can find it) so we
   # don't leak an unhealthy container, then move the broken compose aside so
   # we don't carry it into the next attempt.
-  docker compose down --remove-orphans >/dev/null 2>&1 || true
+  "${COMPOSE[@]}" down --remove-orphans >/dev/null 2>&1 || true
   mv docker-compose.yml docker-compose.failed.yml 2>/dev/null || true
 fi
 exit 1

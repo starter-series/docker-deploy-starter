@@ -69,6 +69,7 @@ docker compose up
 │   └── package.json
 ├── Dockerfile                  # 예시 빌드 (언어별 교체)
 ├── docker-compose.yml          # 로컬 개발용
+├── .env.example                # 로컬/프로덕션 환경변수 템플릿
 ├── .github/
 │   ├── workflows/
 │   │   ├── ci.yml              # 린트, compose 검증, 빌드 테스트, JS 테스트
@@ -85,6 +86,7 @@ docker compose up
 │   └── deploy-with-rollback.sh # 헬스체크 배포 + 자동 롤백
 ├── tests/                      # node:test 스위트 + 롤백 통합 테스트
 ├── package.json                # `npm test` 러너
+├── package-lock.json           # npm audit/재현성 lockfile
 └── VERSION                     # 현재 버전
 ```
 
@@ -143,6 +145,7 @@ docker compose up
 | Dockerfile 린트 | [Hadolint](https://github.com/hadolint/hadolint)로 베스트 프랙티스 검사 |
 | Compose 검증 | `docker-compose.yml` 문법 확인 |
 | 빌드 테스트 | Docker 이미지 빌드로 오류 사전 감지 |
+| 이미지 스캔 | [Trivy](https://github.com/aquasecurity/trivy)로 CRITICAL CVE 검사 |
 
 ### 보안 & 유지보수
 
