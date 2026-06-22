@@ -4,6 +4,9 @@
   "private": true,
   "description": "Test harness for the docker-deploy-starter template (scripts + app).",
   "scripts": {
+    "compose:check": "bash scripts/smoke.sh --config-only",
+    "build": "docker build -t docker-deploy-starter:smoke .",
+    "smoke": "bash scripts/smoke.sh",
     "test": "node --test \"tests/**/*.test.js\""
   }
 }

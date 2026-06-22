@@ -31,6 +31,8 @@
 npx @starter-series/create my-service --template docker-deploy
 cd my-service
 # 내 앱 Dockerfile + 코드 추가 후:
+npm run compose:check
+npm run build
 docker compose up
 ```
 
@@ -39,6 +41,8 @@ docker compose up
 ```bash
 git clone https://github.com/starter-series/docker-deploy-starter my-service
 cd my-service
+npm run compose:check
+npm run build
 docker compose up
 ```
 
@@ -58,6 +62,7 @@ rm -rf app/
 
 # 4. 로컬 테스트
 cp .env.example .env
+npm run smoke
 docker compose up
 ```
 
@@ -190,6 +195,10 @@ docker compose up
 # Docker로 로컬 실행
 docker compose up
 
+# 첫 실행 전 credential-free smoke
+npm run compose:check
+npm run build
+
 # Dockerfile 변경 후 재빌드
 docker compose up --build
 
@@ -204,6 +213,9 @@ node scripts/bump-version.js major   # 1.0.0 → 2.0.0
 ```bash
 # Node 테스트: 버전 범프 검증 + /health (200) 및 알 수 없는 경로 (404)
 npm test
+
+# Compose config + Docker 이미지 smoke
+npm run smoke
 
 # 롤백 통합 테스트 (Docker 필요, CI에서도 실행됨)
 bash tests/rollback-integration.sh

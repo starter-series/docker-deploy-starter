@@ -31,6 +31,8 @@ Build your app. Push to deploy.
 npx @starter-series/create my-service --template docker-deploy
 cd my-service
 # Add your app's Dockerfile + code, then:
+npm run compose:check
+npm run build
 docker compose up
 ```
 
@@ -39,6 +41,8 @@ docker compose up
 ```bash
 git clone https://github.com/starter-series/docker-deploy-starter my-service
 cd my-service
+npm run compose:check
+npm run build
 docker compose up
 ```
 
@@ -58,6 +62,7 @@ rm -rf app/
 
 # 4. Test locally
 cp .env.example .env
+npm run smoke
 docker compose up
 ```
 
@@ -190,6 +195,10 @@ See **[docs/VPS_DEPLOY.md](docs/VPS_DEPLOY.md)** for a detailed setup guide.
 # Start locally with Docker
 docker compose up
 
+# Credential-free smoke before first run
+npm run compose:check
+npm run build
+
 # Rebuild after Dockerfile changes
 docker compose up --build
 
@@ -204,6 +213,9 @@ node scripts/bump-version.js major   # 1.0.0 → 2.0.0
 ```bash
 # Node tests: version-bump validation + /health (200) and unknown path (404)
 npm test
+
+# Compose config + Docker image smoke
+npm run smoke
 
 # Rollback integration test (needs Docker; also run in CI)
 bash tests/rollback-integration.sh
