@@ -28,7 +28,7 @@ Build your app. Push to deploy.
 **Via [create-starter](https://github.com/starter-series/create-starter)** (recommended):
 
 ```bash
-npx @starter-series/create my-service --template docker-deploy
+gh repo create my-service --template starter-series/docker-deploy-starter --clone
 cd my-service
 # Add your app's Dockerfile + code, then:
 npm run compose:check

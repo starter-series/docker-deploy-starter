@@ -28,7 +28,7 @@
 **[create-starter](https://github.com/starter-series/create-starter) 사용** (권장):
 
 ```bash
-npx @starter-series/create my-service --template docker-deploy
+gh repo create my-service --template starter-series/docker-deploy-starter --clone
 cd my-service
 # 내 앱 Dockerfile + 코드 추가 후:
 npm run compose:check
