@@ -24,6 +24,11 @@
 #   ENV_FILE     Path to an env_file for the compose service. Empty disables it.
 #   SKIP_PULL    If "1", skip `docker compose pull` (useful when the test has
 #                already loaded a local image that is not in a registry).
+#   PUBLISH_HOST Host address the app port is published on. Defaults to
+#                127.0.0.1 so only a same-host reverse proxy (e.g. Caddy, see
+#                docs/HTTPS_SETUP.md) can reach the app and the plaintext port
+#                is never exposed to the internet. Set to 0.0.0.0 only for
+#                setups with no reverse proxy that must serve the port directly.
 
 set -euo pipefail
 
@@ -32,6 +37,7 @@ set -euo pipefail
 : "${DEPLOY_DIR:?DEPLOY_DIR is required}"
 ENV_FILE="${ENV_FILE:-}"
 SKIP_PULL="${SKIP_PULL:-0}"
+PUBLISH_HOST="${PUBLISH_HOST:-127.0.0.1}"
 
 if docker compose version >/dev/null 2>&1; then
   COMPOSE=(docker compose)
@@ -57,7 +63,7 @@ write_compose() {
     echo "    environment:"
     echo "      PORT: \"${PORT}\""
     echo "    ports:"
-    echo "      - \"${PORT}:${PORT}\""
+    echo "      - \"${PUBLISH_HOST}:${PORT}:${PORT}\""
     echo "    restart: unless-stopped"
     echo "    read_only: true"
     echo "    tmpfs:"
