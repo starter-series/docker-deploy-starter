@@ -79,6 +79,25 @@ The workflow will:
 4. Pull the new image and restart with health check verification (`docker compose up -d --wait`)
 5. Clean up old images on VPS (`docker image prune`) and GHCR (keep last 10 versions)
 
+## Port Exposure and Firewall
+
+By default the deploy publishes the app port to **loopback only**
+(`127.0.0.1:PORT:PORT`). This keeps the plaintext HTTP port off the public
+internet — put a reverse proxy in front for TLS (see
+[HTTPS_SETUP.md](HTTPS_SETUP.md)), which reaches the app on `localhost:3000`.
+
+- **With a reverse proxy (recommended):** no change needed. Caddy on the host
+  proxies to `localhost:3000`; only ports 80/443 face the internet.
+- **No reverse proxy (serve the port directly):** set `PUBLISH_HOST=0.0.0.0` in
+  the deploy step's `env:` block in `cd.yml` to publish on all interfaces. Only
+  do this if you understand the app is served in plaintext.
+
+> **Firewall caveat:** Docker inserts its own iptables `DNAT` rules that bypass
+> UFW, so a published port (`0.0.0.0`) stays reachable even after
+> `sudo ufw deny 3000`. The loopback default sidesteps this entirely. If you
+> must publish publicly, restrict access at the cloud provider's firewall /
+> security group, not UFW alone.
+
 ## Troubleshooting
 
 ### Container won't start
@@ -209,7 +228,9 @@ services:
     image: ghcr.io/your-user/your-repo:latest
     env_file: ~/.env.app
     ports:
-      - "3000:3000"
+      # Loopback only — a same-host reverse proxy (Caddy) fronts this.
+      # Use 0.0.0.0 instead only if you must serve the port directly.
+      - "127.0.0.1:3000:3000"
     restart: unless-stopped
     depends_on:
       db:

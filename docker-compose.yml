@@ -3,7 +3,9 @@ services:
     build: .
     env_file: .env
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      # Bind to loopback by default so the app port is not exposed beyond this
+      # host. Override with PUBLISH_HOST=0.0.0.0 to publish on all interfaces.
+      - "${PUBLISH_HOST:-127.0.0.1}:${PORT:-3000}:${PORT:-3000}"
     volumes:
       - ./app:/app
       # Preserve container's installed dependencies from host mount override.
