@@ -4,7 +4,7 @@ runs:
   using: composite
   steps:
   - name: Lint Dockerfile
-    uses: starter-series/.github/.github/actions/docker-lint@main
+    uses: starter-series/.github/.github/actions/docker-lint@fdacdbce9d1dd18a573e7c57c482bb07ab1f2954
   - name: Validate docker-compose
     run: |
       cp .env.example .env
@@ -15,7 +15,7 @@ runs:
     run: docker build -t docker-deploy-starter:test .
     shell: bash
   - name: Scan image for vulnerabilities
-    uses: starter-series/.github/.github/actions/image-security@main
+    uses: starter-series/.github/.github/actions/image-security@fdacdbce9d1dd18a573e7c57c482bb07ab1f2954
     with:
       image: docker-deploy-starter:test
   - name: Check image size

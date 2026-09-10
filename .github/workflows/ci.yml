@@ -12,13 +12,13 @@ permissions:
   contents: read
 jobs:
   checks:
-    uses: starter-series/.github/.github/workflows/reusable-container-ci.yml@main
+    uses: starter-series/.github/.github/workflows/reusable-container-ci.yml@fdacdbce9d1dd18a573e7c57c482bb07ab1f2954
   ci:
     if: ${{ always() }}
     needs:
     - checks
     runs-on: ubuntu-latest
     steps:
-    - uses: starter-series/.github/.github/actions/require-checks@main
+    - uses: starter-series/.github/.github/actions/require-checks@fdacdbce9d1dd18a573e7c57c482bb07ab1f2954
       with:
         results: ${{ toJSON(needs) }}
