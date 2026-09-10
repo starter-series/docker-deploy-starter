@@ -256,3 +256,5 @@ PR 환영합니다. [PR 템플릿](.github/PULL_REQUEST_TEMPLATE.md)을 사용�
 ## 라이선스
 
 [MIT](LICENSE)
+
+로컬 `npm run compose:check`와 `npm run smoke`는 Bash와 Docker Compose가 필요합니다. Windows에서는 Docker Desktop 통합을 켠 WSL 2에서 실행하세요. `compose:check`는 데몬 없이 설정을 검사하고, `smoke`는 실행 중인 Docker 데몬도 필요합니다.

@@ -256,3 +256,5 @@ PRs welcome. Please use the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
 ## License
 
 [MIT](LICENSE)
+
+Local `npm run compose:check` and `npm run smoke` require Bash and Docker Compose. On Windows, run them in WSL 2 with Docker Desktop integration enabled. `compose:check` validates configuration without a running daemon; `smoke` also requires a running Docker daemon.

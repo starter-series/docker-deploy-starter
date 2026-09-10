@@ -12,6 +12,6 @@ permissions:
   security-events: write
 jobs:
   analyze:
-    uses: starter-series/.github/.github/workflows/reusable-codeql.yml@main
+    uses: starter-series/.github/.github/workflows/reusable-codeql.yml@fdacdbce9d1dd18a573e7c57c482bb07ab1f2954
     with:
       language: javascript-typescript
